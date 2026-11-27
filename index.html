@@ -80,16 +80,17 @@ const prods=ks=>ks.filter(k=>s.p[k]&&s.p[k].n.every(v=>v!==null));
 const F=prods(['apple','pear','banana','c_апельсин','c_киви','c_мандарин']),D=prods(['yog','c_кефир','c_творог5','c_йогурт']);
 const used=new Set(),rnd=a=>{if(!a.length)return null;const free=a.filter(k=>!used.has(k));const L=free.length?free:a;return L[Math.floor(Math.random()*L.length)]};
 const carby=k=>{const m=macro(k,100);return m[3]*4>m[0]*.35},K=2400/1800,m2=(k,q)=>({k,q:[q,Math.round(q*K)]});
-const build=(di,mn)=>{const br=rnd(B),sn=rnd(T),sl=rnd(S),sd=rnd(S),pk={br,sn,sl,sd};
-const rows=[br?[m2(br,250)]:[m2('egg',120),m2('bread',40)],
-sn?[m2(sn,120)]:[m2(rnd(F)||'apple',150)],
-[m2(mn.ml||'chicken',200),...(mn.ml&&carby(mn.ml)?[]:[m2(mn.ga||'buck',60)]),m2(sl||'cucumber',150)],
-[m2(rnd(D)||'yog',150),m2(rnd(F)||'pear',120)],
-[m2(mn.md||'turkey',200),m2(sd||'tomato',150),m2('oil',8)]];
-const day=rows.map((rows,j)=>({h:prev[di]?.[j]?.h??true,rows}));for(const r of [0,1])fit(day,r);return {day,pk,e:dayErr(day)}};
-const bestDay=(di,mn)=>{let best=null;for(let t=0;t<14;t++){const c=build(di,mn);if(!best||c.e<best.e)best=c;if(best.e<.06)break}return best};
-const out=[];for(const ds of [[0,1],[2,3,4],[5,6]]){let bestB=null;for(let t=0;t<5;t++){const mn={ml:rnd(M),md:null,ga:rnd(G)};used.add(mn.ml);mn.md=rnd(M);used.delete(mn.ml);const days_=ds.map(di=>bestDay(di,mn)),e=Math.max(...days_.map(x=>x.e));if(!bestB||e<bestB.e)bestB={e,days_,mn};if(e<.08)break}
-for(const k of [bestB.mn.ml,bestB.mn.md,bestB.mn.ga])used.add(k);bestB.days_.forEach((x,n)=>{out[ds[n]]=x.day;Object.values(x.pk).forEach(k=>k&&used.add(k))})}
+const clone=x=>JSON.parse(JSON.stringify(x));
+const build=(ds,pk)=>{const rows=[pk.br?[m2(pk.br,250)]:[m2('egg',120),m2('bread',40)],
+pk.sn?[m2(pk.sn,120)]:[m2(pk.f1||'apple',150)],
+[m2(pk.ml||'chicken',200),...(pk.ml&&carby(pk.ml)?[]:[m2(pk.ga||'buck',60)]),m2(pk.sl||'cucumber',150)],
+[m2(pk.dr||'yog',150),m2(pk.f2||'pear',120)],
+[m2(pk.ml||'chicken',180),m2(pk.sl||'cucumber',150),m2('oil',8)]];
+const tpl=rows.map(rows=>({h:true,rows}));fit(tpl,0);
+const days=ds.map(di=>{const day=clone(tpl).map((m,j)=>({h:prev[di]?.[j]?.h??true,rows:m.rows}));fit(day,1);return day});
+return {days,e:Math.max(...days.map(dayErr))}};
+const out=[];for(const ds of [[0,1],[2,3,4],[5,6]]){let best=null;for(let t=0;t<24;t++){const pk={br:rnd(B),sn:rnd(T),ml:rnd(M),ga:rnd(G),sl:rnd(S),dr:rnd(D),f1:rnd(F),f2:rnd(F)};const c=build(ds,pk);if(!best||c.e<best.e)best={...c,pk};if(best.e<.06)break}
+Object.values(best.pk).forEach(k=>k&&used.add(k));best.days.forEach((day,n)=>out[ds[n]]=day)}
 s.w=out;save();go(0)}
 function totals(m,i){return sum(m.rows.map(l=>macro(l.k,l.q[i])))}function batch(){let bs=[{}, {}, {}],buy={};s.w.forEach((day,di)=>day.forEach(m=>m.rows.forEach(({k,q})=>{let g=q[0]+(m.h?q[1]:0);if(s.p[k]){buy[k]=(buy[k]||0)+g;return}let e=bs[block(di)][k]||={g:0,days:{},portions:0};e.g+=g;e.days[di]=(e.days[di]||0)+g;e.portions+=1+Number(m.h);for(let [p,qty] of s.r[k].lines)buy[p]=(buy[p]||0)+qty*g/basis(k)})));return {bs,buy}}
 function go(i){tab=i;$('nav').innerHTML=tabs.map((t,j)=>`<button class="${i===j?'on':''}" onclick="go(${j})">${t}</button>`).join('');[menu,prep,shopping,products,recipes][i]()}function menu(){let w=s.w[d];$('app').innerHTML=`<small class="crumb">СЕМЕЙНОЕ МЕНЮ　/　МЕНЮ</small><h1 class="daytitle">${days[d]}</h1><section class="daily"><h3>КБЖУ за день</h3><table class="kb"><tr><th></th><th>ккал</th><th>Белки, г</th><th>Жиры, г</th><th>Углеводы, г</th></tr>${[0,1].map(r=>`<tr><th>${r?'Муж':'Я'}</th>${sum(w.filter(m=>!r||m.h).map(m=>totals(m,r))).map((v,i)=>{let g=GOALS[r][i],t=v===null?'Не хватает данных о составе продуктов.':`${['Энергия','Белки','Жиры','Углеводы'][i]}: ${fmt(v)} из ${g} ${i?'г':'ккал'} (пример цели).`;return `<td><button class="${v===null?'':v<.8*g?'lo':v>1.2*g?'hi':''}" onclick="document.getElementById('hint').textContent='${t}'">${v===null?'—':Math.round(v).toLocaleString('ru-RU')}</button></td>`}).join('')}</tr>`).join('')}</table><small id="hint" aria-live="polite"></small></section><div class="actions bar"><div class="days">${short.map((n,i)=>`<button aria-label="${days[i]}" aria-pressed="${d===i}" class="${d===i?'on':''}" onclick="d=${i};menu()">${n}</button>`).join('')}</div><button class="main" onclick="gen()">Подобрать меню</button></div><div class="sectitle"><h2>Приёмы пищи</h2><small>План на день</small></div>`+w.map((m,j)=>`<article><h3>${meals[j]}</h3><label><input type="checkbox" ${m.h?'checked':''} onchange="s.w[d][${j}].h=this.checked;save();menu()"> Муж ест</label>${m.rows.map((l,t)=>`<div class="line"><label class="food">Выбор блюда или продукта<select onchange="row(${j},${t},'k',this)">${sel(all(),l.k)}</select></label><label>Я, ${unit(l.k)}<input aria-label="Моя порция" type="number" min="0.1" step="any" value="${fmt(l.q[0])}" onchange="row(${j},${t},0,this)"></label>${m.h?`<label>Муж, ${unit(l.k)}<input type="number" min="0.1" step="any" value="${fmt(l.q[1])}" onchange="row(${j},${t},1,this)"></label>`:''}${btn('Убрать',`s.w[d][${j}].rows.splice(${t},1);save();menu()`)} </div>`).join('')}<p>${btn('+ Добавить позицию',`s.w[d][${j}].rows.push(mk('apple',100));save();menu()`)}</p></article>`).join('');}
